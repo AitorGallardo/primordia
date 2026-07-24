@@ -1,0 +1,89 @@
+---
+title: "Primordia"
+summary: "A browser petri dish whose organisms think with a 135M open-source model — no server, no API keys."
+tags: ["Three.js", "AI", "transformers.js", "Simulation"]
+time:
+  created: "2026-07-25T00:00:00.000Z"
+  updated: "2026-07-25T00:00:00.000Z"
+media:
+  image: "/images/primordia-preview.png"
+pagesite:
+  url: "https://aitorgallardo.github.io/primordia/"
+hideOptions:
+  hideUpdated: true
+  hideReadingTime: true
+seo:
+  title: "Primordia — a living petri dish with in-browser AI minds"
+  description: "A three.js petri dish where autonomous organisms wander, eat, bond and die on steering behaviors, and think with SmolLM2-135M running entirely in your browser via transformers.js."
+  keywords: ["primordia", "three.js", "transformers.js", "in-browser AI", "WebGPU", "SmolLM2", "artificial life", "simulation", "Aitor Gallardo"]
+---
+
+<Image src={`${process.env.NEXT_PUBLIC_BASE_PATH}/images/primordia-preview.png`} alt="Primordia — glowing organisms drifting in a dark circular petri dish" />
+
+# Primordia
+
+I wanted to see what it feels like to peer into a pond that thinks. So I built
+one. Primordia is a tiny living world that runs entirely in your browser: a
+circular petri dish, seen from above, with a dozen or so glowing organisms that
+drift, feed, form bonds, feud, reproduce and die. Every one of them is
+procedurally unique — body, colour, size, motion and name all grown from a
+single seed — and their minds are a real open-source language model running on
+your own machine. No server, no API key.
+
+# What you're watching
+
+Food motes drift in from the rim. Organisms get hungry, chase them, and dim as
+their energy drains — when it hits zero they sink and fade to sediment. Well-fed
+pairs that get along will reproduce, and the offspring blends its parents' traits
+with a little mutation, so the pond slowly drifts genetically over time. Faint
+threads appear between organisms that have bonded; some pairs bond, some learn to
+avoid each other. Now and then one says something in a small speech bubble.
+
+Click any organism and you get its card: name, age, energy, personality, its
+strongest bonds and rivalries, and its last thought — including whether that
+thought came from the model or from instinct.
+
+# How it's built
+
+The honest split matters to me, so here it is plainly.
+
+**The body is steering behaviors.** Movement, hunger, the relationship affinity
+matrix, reproduction and death are all classic, deterministic-ish simulation —
+wander, seek, flee, separate, plus a lifecycle. It's cheap and it holds 60fps.
+The whole pond is alive with the AI switched off; add `?minds=off` to the URL and
+you still get births, deaths, bonds and rivalries. That was a hard rule: the
+experience must never depend on the model.
+
+**The voice and intent is a language model.** After the sim is already running,
+`SmolLM2-135M-Instruct` — an open model of about 135 million parameters — loads
+lazily through transformers.js on WebGPU, with a WASM fallback, inside a Web
+Worker so it never stalls the render loop. Round-robin, one organism thinks every
+few seconds. I hand the model a compact prompt built from that organism's state
+and persona and ask for a tiny JSON action plus a line of at most eight words.
+The action biases its steering for the next ~10 seconds; the line becomes a
+speech bubble.
+
+Why such a small model? Because it has to fit and run in a stranger's browser
+tab with no backend, and because 135M is honestly enough for this job — I don't
+need reasoning, I need a flicker of intent and a distinct little voice. One model
+wears seven personas (curious, grumpy, poetic, anxious, greedy, gentle, stoic),
+which is how a single 135M model yields many voices. I'm not pretending these are
+minds; the model is small and it says silly things, and that's the fun of it.
+
+**The contract, and its failure mode.** The model is asked to answer with one
+line like `{"action":"seek_food","say":"so hungry"}`. I parse it defensively:
+pull out the JSON, validate the action against a fixed set, confirm any named
+target is a real nearby organism, clamp the text. On any parse failure, timeout,
+or if the model never loads at all, that organism silently falls back to instinct
+and a clearly-labelled canned line. The UI never dresses instinct up as AI — the
+HUD states exactly what's running (`SmolLM2-135M running in your browser`, or
+`instinct mode`), instinct speech is visually marked, and each inspect card tells
+you the source of the last thought.
+
+# Try it
+
+- Live demo: https://aitorgallardo.github.io/primordia/
+- Source: https://github.com/AitorGallardo/primordia
+
+Drag to pan, scroll to zoom, click an organism to inspect it, and watch the
+`minds:` line to know exactly what's doing the thinking.
