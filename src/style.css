@@ -1,0 +1,293 @@
+:root {
+  --bg: #03050a;
+  --ink: #cfe8e2;
+  --dim: #6f8a86;
+  --line: rgba(120, 200, 190, 0.18);
+  --panel: rgba(6, 12, 16, 0.72);
+  --accent: #58e6c8;
+  --warn: #e6b45a;
+  font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+}
+
+canvas {
+  display: block;
+  touch-action: none;
+}
+
+/* ---------- HUD ---------- */
+.hud {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 10;
+  padding: 14px 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  backdrop-filter: blur(6px);
+  font-size: 12px;
+  line-height: 1.7;
+  max-width: 300px;
+  user-select: none;
+  pointer-events: none;
+}
+
+.hud .title {
+  font-size: 15px;
+  letter-spacing: 0.22em;
+  color: var(--accent);
+  text-transform: lowercase;
+  margin-bottom: 2px;
+}
+
+.hud .tagline {
+  color: var(--dim);
+  font-size: 11px;
+  margin-bottom: 10px;
+}
+
+.hud .row {
+  display: flex;
+  gap: 8px;
+}
+
+.hud .k {
+  color: var(--dim);
+}
+
+.hud .minds {
+  margin-top: 8px;
+  color: var(--accent);
+  font-size: 11px;
+  word-break: break-word;
+}
+
+.hud .minds.instinct {
+  color: var(--warn);
+}
+
+.hud .hint {
+  margin-top: 8px;
+  color: var(--dim);
+  font-size: 11px;
+}
+
+.hud .controls {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+.hud .controls .k {
+  margin-right: 2px;
+}
+
+.tbtn {
+  font: inherit;
+  font-size: 11px;
+  color: var(--dim);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tbtn:hover {
+  color: var(--ink);
+  border-color: var(--accent);
+}
+
+.tbtn.active {
+  color: var(--bg);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ---------- speech bubbles ---------- */
+.speech-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.bubble {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  padding: 3px 8px;
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--ink);
+  background: rgba(8, 16, 20, 0.82);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  white-space: nowrap;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: opacity 0.3s ease;
+}
+
+.bubble.instinct {
+  border-style: dashed;
+  color: var(--warn);
+}
+
+.bubble .tag {
+  color: var(--dim);
+  font-size: 9px;
+  margin-left: 6px;
+  opacity: 0.8;
+}
+
+/* ---------- inspect card ---------- */
+.inspect {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 11;
+  width: 260px;
+  padding: 14px 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  backdrop-filter: blur(6px);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.inspect.hidden {
+  display: none;
+}
+
+.inspect .head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+
+.inspect .name {
+  font-size: 15px;
+  color: var(--accent);
+}
+
+.inspect .close {
+  cursor: pointer;
+  color: var(--dim);
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+}
+
+.inspect .close:hover {
+  color: var(--ink);
+}
+
+.inspect .line {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.inspect .line .k {
+  color: var(--dim);
+}
+
+.inspect .bar {
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  margin: 3px 0 6px;
+}
+
+.inspect .bar > i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.inspect .section {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.inspect .section .h {
+  color: var(--dim);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.inspect .thought {
+  font-style: italic;
+  color: var(--ink);
+}
+
+.inspect .src {
+  font-style: normal;
+  font-size: 10px;
+  color: var(--dim);
+}
+
+.inspect .src.model {
+  color: var(--accent);
+}
+
+.inspect .src.instinct {
+  color: var(--warn);
+}
+
+.bond-pos {
+  color: var(--accent);
+}
+.bond-neg {
+  color: var(--warn);
+}
+
+/* ---------- loading veil ---------- */
+.boot {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  color: var(--dim);
+  font-size: 13px;
+  letter-spacing: 0.2em;
+  transition: opacity 0.6s ease;
+}
+
+.boot.gone {
+  opacity: 0;
+  pointer-events: none;
+}
