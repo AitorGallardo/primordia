@@ -68,6 +68,10 @@ thought came from the model or from instinct.
 
 The tab pauses when it's hidden, and pixel ratio is capped at 2, to stay light.
 
+On mobile the camera frames the whole dish to fit the screen (portrait or
+landscape), the HUD is compact and collapsible, and tapping an organism opens
+the inspect card as a bottom sheet.
+
 ## Stack
 
 - [three.js](https://threejs.org/) for the 2.5D scene (sprite glow instead of a

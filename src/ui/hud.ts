@@ -15,6 +15,7 @@ export class Hud {
     this.el = document.createElement('div');
     this.el.className = 'hud';
     this.el.innerHTML = `
+      <button class="hud-collapse" data-collapse type="button" aria-label="collapse panel">–</button>
       <div class="title">primordia</div>
       <div class="tagline">a pond that thinks · tiny minds in your browser</div>
       <div class="row"><span class="k">population</span><span data-pop>—</span></div>
@@ -25,9 +26,31 @@ export class Hud {
         <button class="tbtn" data-scale="1">1×</button>
         <button class="tbtn" data-scale="4">4×</button>
       </div>
-      <div class="hint">click an organism to inspect it</div>
+      <div class="hint">tap an organism to inspect it</div>
     `;
     parent.appendChild(this.el);
+
+    // Collapse toggle — only visible on narrow screens (see CSS); lets the
+    // panel shrink to its title bar so it never buries the dish on a phone.
+    const collapseBtn = this.el.querySelector<HTMLButtonElement>('[data-collapse]')!;
+    const setCollapsed = (collapsed: boolean): void => {
+      this.el.classList.toggle('collapsed', collapsed);
+      collapseBtn.textContent = collapsed ? '+' : '–';
+      collapseBtn.setAttribute('aria-label', collapsed ? 'expand panel' : 'collapse panel');
+    };
+    let userToggled = false;
+    collapseBtn.addEventListener('click', () => {
+      userToggled = true;
+      setCollapsed(!this.el.classList.contains('collapsed'));
+    });
+    // Auto-collapse on short viewports (e.g. landscape phones) where the full
+    // panel would bury the dish; re-evaluated on rotation until the user takes
+    // manual control. The toggle is always available to override.
+    const autoCollapse = (): void => {
+      if (!userToggled) setCollapsed(window.innerHeight < 520);
+    };
+    autoCollapse();
+    window.addEventListener('resize', autoCollapse);
 
     this.popEl = this.el.querySelector('[data-pop]')!;
     this.bdEl = this.el.querySelector('[data-bd]')!;

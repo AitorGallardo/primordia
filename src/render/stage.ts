@@ -45,8 +45,12 @@ export class Stage {
   private baseTheta = -Math.PI / 2;
   private minD: number;
   private maxD: number;
+  private dishRadius: number;
+  private zoomFactor = 1; // user pinch/wheel zoom, applied on top of the fit distance
+  private gesturing = false; // true while a multi-touch (pinch) gesture is active
 
   constructor(private container: HTMLElement, dishRadius: number) {
+    this.dishRadius = dishRadius;
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
       powerPreference: 'high-performance',
@@ -59,9 +63,10 @@ export class Stage {
 
     this.scene.fog = new THREE.FogExp2(0x03050a, 0.006);
     this.camera = new THREE.PerspectiveCamera(48, container.clientWidth / container.clientHeight, 0.1, 400);
+    this.minD = dishRadius * 1.0;
+    this.maxD = dishRadius * 9; // wide enough to frame the full dish in a tall portrait viewport
     this.distance = dishRadius * 2.1;
-    this.minD = dishRadius * 1.1;
-    this.maxD = dishRadius * 3.2;
+    this.recomputeDistance();
 
     // dish floor
     const floorGeo = new THREE.CircleGeometry(dishRadius * 1.02, 96);
@@ -162,6 +167,33 @@ export class Stage {
     this.camera.lookAt(this.target);
   }
 
+  // Distance at which the whole circular dish fits the current viewport.
+  // Portrait (aspect < 1) crops the circle horizontally, so we pull the camera
+  // back by the horizontal constraint; landscape is limited by the vertical
+  // (foreshortened by the camera tilt) extent instead.
+  private fitDistance(): number {
+    const w = this.container.clientWidth;
+    const h = this.container.clientHeight;
+    const aspect = w / Math.max(1, h);
+    const vhalf = Math.tan((this.camera.fov * Math.PI) / 180 / 2);
+    const halfSpan = this.dishRadius * 1.12; // circle + rim + a little margin
+    const dH = halfSpan / (vhalf * aspect); // horizontal fit (not foreshortened)
+    // The tilted view projects the dish as an off-centre ellipse taller than a
+    // naive foreshortening estimate, so keep the vertical factor generous — this
+    // is what guarantees the whole circle stays on-screen in a short landscape.
+    const dV = (halfSpan * 1.12) / vhalf;
+    return Math.max(dH, dV);
+  }
+
+  private recomputeDistance(): void {
+    const d = this.fitDistance() * this.zoomFactor;
+    this.distance = Math.max(this.minD, Math.min(this.maxD, d));
+  }
+
+  get isGesturing(): boolean {
+    return this.gesturing;
+  }
+
   // ---- picking / projection -------------------------------------------
   pick(clientX: number, clientY: number): number | null {
     const rect = this.renderer.domElement.getBoundingClientRect();
@@ -191,40 +223,88 @@ export class Stage {
   // ---- controls --------------------------------------------------------
   private installControls(): void {
     const el = this.renderer.domElement;
-    let dragging = false;
     let lastX = 0;
     let lastY = 0;
+    // active pointers, for one-finger pan vs two-finger pinch-zoom
+    const pointers = new Map<number, { x: number; y: number }>();
+    let pinchStartDist = 0;
+    let pinchStartZoom = 1;
+
+    const pinchDistance = (): number => {
+      const pts = [...pointers.values()];
+      return Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+    };
 
     el.addEventListener('pointerdown', (e) => {
-      dragging = true;
-      lastX = e.clientX;
-      lastY = e.clientY;
-    });
-    window.addEventListener('pointerup', () => {
-      dragging = false;
-    });
-    window.addEventListener('pointermove', (e) => {
-      if (!dragging) return;
-      const dx = e.clientX - lastX;
-      const dy = e.clientY - lastY;
-      lastX = e.clientX;
-      lastY = e.clientY;
-      const panScale = this.distance * 0.0016;
-      // pan in the camera's ground plane (approx, ignoring drift azimuth)
-      this.target.x -= dx * panScale;
-      this.target.z -= dy * panScale;
-      const r = Math.hypot(this.target.x, this.target.z);
-      const maxPan = 20;
-      if (r > maxPan) {
-        this.target.x *= maxPan / r;
-        this.target.z *= maxPan / r;
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pointers.size === 1) {
+        lastX = e.clientX;
+        lastY = e.clientY;
+      } else if (pointers.size === 2) {
+        // begin pinch
+        this.gesturing = true;
+        pinchStartDist = pinchDistance();
+        pinchStartZoom = this.zoomFactor;
       }
     });
+
+    const endPointer = (e: PointerEvent): void => {
+      pointers.delete(e.pointerId);
+      if (pointers.size < 2) {
+        pinchStartDist = 0;
+        // keep gesturing true for one tick so a lifted-finger tap isn't mis-picked
+        if (pointers.size === 0) this.gesturing = false;
+      }
+      if (pointers.size === 1) {
+        const p = [...pointers.values()][0];
+        lastX = p.x;
+        lastY = p.y;
+      }
+    };
+    window.addEventListener('pointerup', endPointer);
+    window.addEventListener('pointercancel', endPointer);
+
+    window.addEventListener(
+      'pointermove',
+      (e) => {
+        if (!pointers.has(e.pointerId)) return;
+        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+        if (pointers.size >= 2) {
+          // pinch to zoom
+          const d = pinchDistance();
+          if (pinchStartDist > 0) {
+            this.zoomFactor = Math.max(0.4, Math.min(3, pinchStartZoom * (pinchStartDist / d)));
+            this.recomputeDistance();
+          }
+          e.preventDefault();
+          return;
+        }
+
+        // one-finger pan in the camera's ground plane
+        const dx = e.clientX - lastX;
+        const dy = e.clientY - lastY;
+        lastX = e.clientX;
+        lastY = e.clientY;
+        const panScale = this.distance * 0.0016;
+        this.target.x -= dx * panScale;
+        this.target.z -= dy * panScale;
+        const r = Math.hypot(this.target.x, this.target.z);
+        const maxPan = 20;
+        if (r > maxPan) {
+          this.target.x *= maxPan / r;
+          this.target.z *= maxPan / r;
+        }
+      },
+      { passive: false },
+    );
+
     el.addEventListener(
       'wheel',
       (e) => {
         e.preventDefault();
-        this.distance = Math.max(this.minD, Math.min(this.maxD, this.distance * (1 + Math.sign(e.deltaY) * 0.08)));
+        this.zoomFactor = Math.max(0.4, Math.min(3, this.zoomFactor * (1 + Math.sign(e.deltaY) * 0.08)));
+        this.recomputeDistance();
       },
       { passive: false },
     );
@@ -237,5 +317,6 @@ export class Stage {
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.recomputeDistance();
   }
 }

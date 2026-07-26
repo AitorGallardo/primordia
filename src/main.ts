@@ -47,6 +47,7 @@ stage.renderer.domElement.addEventListener('pointerdown', (e) => {
   downT = performance.now();
 });
 stage.renderer.domElement.addEventListener('pointerup', (e) => {
+  if (stage.isGesturing) return; // ignore taps that are part of a pinch gesture
   const moved = Math.hypot(e.clientX - downX, e.clientY - downY);
   if (moved < 6 && performance.now() - downT < 450) {
     const id = stage.pick(e.clientX, e.clientY);
