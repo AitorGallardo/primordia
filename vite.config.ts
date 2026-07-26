@@ -1,8 +1,8 @@
 import { defineConfig } from 'vite';
 
-// Deployed under a subpath on GitHub Pages.
+// Deployed on a custom domain through GitHub Pages.
 export default defineConfig({
-  base: '/primordia/',
+  base: '/',
   build: {
     target: 'esnext',
   },
