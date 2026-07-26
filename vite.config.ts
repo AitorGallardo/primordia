@@ -1,8 +1,8 @@
 import { defineConfig } from 'vite';
 
-// Embedded under the portfolio's /lab path.
+// Served from the primordia repo's GitHub Pages at aitorgallardo.github.io/primordia/.
 export default defineConfig({
-  base: '/lab/primordia/',
+  base: '/primordia/',
   build: {
     target: 'esnext',
   },
