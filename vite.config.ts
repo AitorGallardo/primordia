@@ -1,8 +1,8 @@
 import { defineConfig } from 'vite';
 
-// Deployed on a custom domain through GitHub Pages.
+// Embedded under the portfolio's /lab path.
 export default defineConfig({
-  base: '/',
+  base: '/lab/primordia/',
   build: {
     target: 'esnext',
   },
