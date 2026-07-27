@@ -94,7 +94,13 @@ export class Stage {
     this.scene.add(this.bonds.object);
 
     this.installControls();
-    window.addEventListener('resize', () => this.resize());
+    const onResize = (): void => this.resize();
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onResize);
+    // Chrome on iOS (CriOS) resizes the visible area as its bottom bar
+    // collapses/expands and fires this on a different schedule than the plain
+    // window 'resize'; listen to both so the canvas never ends up under the bar.
+    window.visualViewport?.addEventListener('resize', onResize);
   }
 
   // ---- entities --------------------------------------------------------

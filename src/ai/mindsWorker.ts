@@ -15,7 +15,10 @@ type InMsg =
 
 function hasWebGPU(): boolean {
   try {
-    return typeof navigator !== 'undefined' && 'gpu' in navigator && !!(navigator as unknown as { gpu: unknown }).gpu;
+    // Safari on iOS 18 exposes navigator.gpu; Chrome on iOS (CriOS) does NOT.
+    // Optional-chain everything so a missing navigator/gpu can never throw —
+    // a false here simply routes us to the wasm backend.
+    return typeof navigator !== 'undefined' && !!(navigator as unknown as { gpu?: unknown })?.gpu;
   } catch {
     return false;
   }
@@ -42,19 +45,26 @@ async function load(): Promise<void> {
     });
   };
 
-  if (hasWebGPU()) {
-    try {
-      await tryDevice('webgpu');
-    } catch (err) {
-      self.postMessage({ type: 'warn', message: `webgpu failed, falling back to wasm: ${String(err)}` });
-      generator = null;
+  try {
+    if (hasWebGPU()) {
+      try {
+        await tryDevice('webgpu');
+      } catch (err) {
+        self.postMessage({ type: 'warn', message: `webgpu failed, falling back to wasm: ${String(err)}` });
+        generator = null;
+        await tryDevice('wasm');
+      }
+    } else {
       await tryDevice('wasm');
     }
-  } else {
-    await tryDevice('wasm');
+    self.postMessage({ type: 'ready', backend });
+  } catch (err) {
+    // Every backend failed to initialise (network blocked, runtime missing,
+    // etc.). Tell the main thread so it drops to instinct mode immediately
+    // rather than waiting out the load timeout. The sim is already alive.
+    generator = null;
+    self.postMessage({ type: 'error', error: String(err) });
   }
-
-  self.postMessage({ type: 'ready', backend });
 }
 
 async function generate(id: number, system: string, user: string): Promise<void> {
@@ -93,4 +103,12 @@ self.addEventListener('message', (ev: MessageEvent<InMsg>) => {
   const msg = ev.data;
   if (msg.type === 'init') void load();
   else if (msg.type === 'generate') void generate(msg.id, msg.system, msg.user);
+});
+
+// Last-resort net: if anything inside the worker rejects/throws without being
+// caught above (e.g. a runtime probe touching an API missing on this browser),
+// tell the main thread to fall back rather than leaving it waiting.
+self.addEventListener('unhandledrejection', (ev) => {
+  const reason = (ev as PromiseRejectionEvent).reason;
+  self.postMessage({ type: 'error', error: String(reason ?? 'worker unhandledrejection') });
 });

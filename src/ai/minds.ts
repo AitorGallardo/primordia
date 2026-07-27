@@ -144,6 +144,12 @@ export class Minds {
         console.warn('[minds]', data.message);
         break;
       }
+      case 'error': {
+        // The worker couldn't bring any backend up. Fall back to instinct now
+        // instead of waiting out the load timeout.
+        this.fail(data.error ?? 'model init failed');
+        break;
+      }
       case 'result': {
         this.handleResult(data.id!, data.ok === true, data.text ?? '', data.error);
         break;

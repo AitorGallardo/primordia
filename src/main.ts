@@ -1,10 +1,15 @@
 import './style.css';
+import { installErrorReporter } from './diag';
 import { World } from './sim/world';
 import { Stage } from './render/stage';
 import { Hud } from './ui/hud';
 import { SpeechLayer } from './ui/speech';
 import { Inspect } from './ui/inspect';
 import { Minds } from './ai/minds';
+
+// Wire the on-page error reporter before anything else can throw, so any
+// failure during boot surfaces as a visible line instead of a dead splash.
+installErrorReporter();
 
 const app = document.getElementById('app')!;
 
@@ -13,6 +18,16 @@ const boot = document.createElement('div');
 boot.className = 'boot';
 boot.textContent = 'assembling primordia…';
 app.appendChild(boot);
+
+function clearBoot(): void {
+  boot.classList.add('gone');
+  setTimeout(() => boot.remove(), 700);
+}
+
+// Failsafe: whatever happens (a throw during setup, a wedged first frame, an
+// unsupported API on some browser), the veil must never linger. If the normal
+// first-frame clear hasn't fired within 10s, drop it and show whatever we have.
+const bootFailsafe = window.setTimeout(clearBoot, 10000);
 
 const DISH_RADIUS = 34;
 const stage = new Stage(app, DISH_RADIUS);
@@ -94,8 +109,8 @@ function frame(now: number): void {
 
   if (!started) {
     started = true;
-    boot.classList.add('gone');
-    setTimeout(() => boot.remove(), 700);
+    clearTimeout(bootFailsafe);
+    clearBoot();
     // lazily wake the minds once the pond is already alive.
     // ?minds=off keeps the world on pure instinct (handy for a quick look,
     // low-power devices, or offline).
